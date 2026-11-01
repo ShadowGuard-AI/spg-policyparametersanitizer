@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spg-policyparametersanitizer: the auditor's worksheet</title>
+<style>
+  /* I set this page up as the worksheet on my desk: the policy on
+     the left, my red marks in the margin, and one rule stamped
+     across the top that the whole exercise answers to. */
+  :root { --paper:#f7f3e8; --ink:#262219; --red:#b3372a;
+          --line:#c9bfa3; --dim:#6f6650; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#3a362c; font-family: Georgia, serif;
+         color:var(--ink); }
+  .sheet { max-width:920px; margin:2rem auto; background:var(--paper);
+           padding:2rem 2rem 2.4rem; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+  header { text-align:center; }
+  header img { max-width:min(880px, 94vw); width:100%; height:auto; }
+  h1 { margin:0.8rem 0 0.2rem; font-size:1.8rem; }
+  .sub { color:var(--dim); max-width:40rem; margin:0.2rem auto;
+         line-height:1.55; }
+  .stamp { display:inline-block; border:3px double var(--red);
+           color:var(--red); font-family:'Courier New', monospace;
+           letter-spacing:0.14em; padding:0.5rem 1.1rem;
+           transform:rotate(-2deg); margin:1.4rem auto 0.4rem;
+           font-size:0.95rem; }
+  h2 { margin-top:2.2rem; font-size:1.25rem;
+       border-bottom:2px solid var(--line); padding-bottom:0.3rem; }
+  p, li { line-height:1.6; }
+  .looks { display:grid; gap:0.8rem; grid-template-columns:1fr; }
+  @media (min-width:720px) { .looks { grid-template-columns:repeat(2, 1fr); } }
+  .look { border:1px solid var(--line); background:#fffdf4;
+          padding:0.9rem 1rem; }
+  .look h3 { margin:0 0 0.35rem; font-size:1rem; color:var(--red); }
+  .look p { margin:0; font-size:0.94rem; }
+  table { width:100%; border-collapse:collapse;
+          font-family:'Courier New', monospace; font-size:0.9rem; }
+  th, td { text-align:left; padding:0.45rem 0.55rem;
+           border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:normal; }
+  .kind { color:var(--red); }
+  pre { background:#2c2822; color:#e9e2cc; border-radius:4px;
+        padding:0.9rem 1rem; overflow-x:auto;
+        font-family:'Courier New', monospace; font-size:0.87rem;
+        line-height:1.55; }
+  img.schematic { width:100%; height:auto; border:1px solid var(--line); }
+  a { color:var(--red); }
+  footer { text-align:center; color:#a79e85; font-size:0.9rem;
+           padding:0 1rem 2.2rem; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <img src="assets/banner.png" alt="spg-policyparametersanitizer banner">
+    <h1>spg-policyparametersanitizer</h1>
+    <p class="sub">Policies drift toward convenience: the API key
+    lands in the parameter file next to the region and the timeout,
+    and stays there. I read the file like an auditor and report
+    every secret I find, by location and kind.</p>
+    <div class="stamp">VALUES ARE NEVER PRINTED</div>
+  </header>
+
+  <h2>What I look for</h2>
+  <div class="looks">
+    <div class="look"><h3>Credential-shaped keys</h3>
+      <p>A value parked under <code>password</code>,
+      <code>api_key</code>, <code>client_secret</code>, or
+      <code>token</code>. Those keys should hold a reference, never
+      the secret.</p></div>
+    <div class="look"><h3>Known key formats</h3>
+      <p>AWS access key ids and private key blocks, wherever in the
+      file they are hiding.</p></div>
+    <div class="look"><h3>Credentials in a URL</h3>
+      <p>The <code>https://user:password@host</code> shape inside an
+      endpoint parameter.</p></div>
+    <div class="look"><h3>High-entropy values</h3>
+      <p>Long values too random to be words a person chose.
+      Machine-generated secrets have a shape, and it is this
+      one.</p></div>
+  </div>
+  <p>References are never flagged: <code>${ENV_VAR}</code>,
+  <code>vault:...</code>, <code>kms:...</code>,
+  <code>changeme</code>, <code>&lt;placeholder&gt;</code>. That
+  convention is the right way to write these files, and I will not
+  train anyone out of it.</p>
+
+  <h2>One worksheet: the test fixture's findings</h2>
+  <p>The fixture policy was written for the test suite with fake
+  values. The tool found five, which is all five it should have
+  found. This table is the complete report; there is nothing held
+  back below it, because the values were never the report.</p>
+  <table>
+    <tr><th>Location</th><th>Kind</th></tr>
+    <tr><td>db_password</td><td class="kind">value under a credential-shaped key</td></tr>
+    <tr><td>backup_key_id</td><td class="kind">AWS access key id</td></tr>
+    <tr><td>endpoint</td><td class="kind">credentials embedded in a URL</td></tr>
+    <tr><td>session_material</td><td class="kind">high-entropy value (looks machine-generated)</td></tr>
+    <tr><td>nested.signing_secret</td><td class="kind">value under a credential-shaped key</td></tr>
+  </table>
+  <p>The one parameter holding <code>vault:prod/db/pass</code> was
+  left alone, as it should be. With <code>--sanitize</code>, a
+  cleaned copy is written with each of the five values replaced by
+  <code>[REDACTED]</code>; the original file is never rewritten,
+  and pointing the sanitizer at the input itself is refused.</p>
+
+  <h2>Run the audit</h2>
+  <pre>python3 main.py policy.json
+python3 main.py policy.json --sanitize policy.sanitized.json
+python3 main.py policy.properties --json</pre>
+  <p>Python 3, standard library only. Exit codes tell the story: 0
+  clean, 1 findings, 2 nothing was scanned. A file I cannot parse
+  is never reported as clean. Full documentation:
+  <a href="https://github.com/ShadowGuard-AI/spg-policyparametersanitizer">the repository</a>.</p>
+
+  <h2>The apparatus</h2>
+  <img class="schematic" src="assets/schematic.png"
+       alt="Hand-drawn invention schematic of spg-policyparametersanitizer">
+</div>
+<footer>
+  spg-policyparametersanitizer is MIT licensed.
+  Copyright (c) Gavin K (@Epsilon0xCell).
+</footer>
+</body>
+</html>
