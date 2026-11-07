@@ -198,7 +198,12 @@ def run(args):
         print(f"error: {path} held nothing I could parse as policy "
               "parameters; nothing was scanned", file=sys.stderr)
         return 2
-    if findings and cleaned is not None and args.sanitize:
+    if args.sanitize and cleaned is None:
+        # No findings to scrub: the cleaned copy is the file
+        # exactly as it stands, so the requested output is still
+        # written instead of silently producing nothing.
+        cleaned = path.read_text(encoding="utf-8", errors="replace")
+    if cleaned is not None and args.sanitize:
         Path(args.sanitize).write_text(cleaned, encoding="utf-8")
         print(f"wrote sanitized copy: {args.sanitize}",
               file=sys.stderr)

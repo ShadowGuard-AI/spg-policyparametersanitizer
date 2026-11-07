@@ -55,9 +55,9 @@ python3 main.py policy.json
 ```
 
 ```text
-policy.json: db_password parameter db_password: value under a credential-shaped key (value redacted)
-policy.json: backup_key_id parameter backup_key_id: AWS access key id (value redacted)
-policy.json: endpoint parameter endpoint: credentials embedded in a URL (value redacted)
+policy.json: db_password: value under a credential-shaped key (value redacted)
+policy.json: backup_key_id: AWS access key id (value redacted)
+policy.json: endpoint: credentials embedded in a URL (value redacted)
 ```
 
 (Those locations and kinds are from this tool's own test fixture,
@@ -97,5 +97,5 @@ python3 main.py policy.properties --json
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT License. See LICENSE.
 Copyright (c) Gavin K (@Epsilon0xCell).
